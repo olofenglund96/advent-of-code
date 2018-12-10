@@ -1,10 +1,11 @@
+require 'set'
 total = 0
-freqs = [0]
-arr = File.open('inputs/1')
-
-while true
+freqs = Set[0]
+nums = 1
+arr = File.open('inputs/1').to_a
+loop do
   arr.each do |line|
-    sign = line[0];
+    sign = line[0]
     amount = line[1..line.length-1].to_i
 
     if sign == '-'
@@ -13,14 +14,11 @@ while true
       total += amount
     end
 
-    freqs.each do |f|
-      if f == total
-        puts total
-        return 1
-      end
+    if freqs.include?(total)
+      puts total
+      return
     end
 
-    freqs.push(total)
+    freqs.add(total)
   end
-
 end
