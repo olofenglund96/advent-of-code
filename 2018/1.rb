@@ -1,7 +1,6 @@
 require 'set'
 total = 0
 freqs = Set[0]
-nums = 1
 arr = File.open('inputs/1').to_a
 loop do
   arr.each do |line|
