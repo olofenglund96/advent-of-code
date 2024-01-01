@@ -2,6 +2,8 @@ import sys
 from pprint import pprint
 import numpy as np
 from dataclasses import dataclass
+from collections import defaultdict
+from tqdm import tqdm
 
 class Beam:
     def __init__(self, loc, vel):
@@ -91,53 +93,75 @@ for line in lines:
 
 xmax = len(grid[0])
 ymax = len(grid)
-grid_counts = np.zeros((len(grid[0]), len(grid)))
+grid_arr = grid
 grid = np.array(grid)
 
+starting_beams = []
+for x in range(xmax):
+    starting_beams.append(Beam((x, 0), (0, 1)))
+    starting_beams.append(Beam((x, ymax-1), (0, -1)))
 
-# xpos, ypos, xvel, yvel
-beams = [Beam((0, 0), (1, 0))]
+for y in range(ymax):
+    starting_beams.append(Beam((0, y), (1, 0)))
+    starting_beams.append(Beam((xmax-1, y), (-1, 0)))
 
-const_iters = 0
-prev_e_cells = 0
-while True:
-    new_beams = []
-    for beam in beams:
-        grid_counts[beam.loc[1], beam.loc[0]] = 1
-        sym = grid[beam.loc[1], beam.loc[0]]
+#pprint(starting_beams)
 
-        if sym == ".":
-            beam.move()
-        elif sym == "|" or sym == "-":
-            new_beam = beam.maybe_split(sym)
-            if new_beam is not None:
-                new_beams.append(new_beam)
+max_energy = 0
+for sbeam in tqdm(starting_beams):
+    #print(f"Doing beam {sbeam=}")
+    grid_counts = np.zeros((xmax, ymax))
+    grid_beam_history = defaultdict(list)
+
+    beams = [sbeam]
+    const_iters = 0
+    prev_e_cells = 0
+    while True:
+        new_beams = []
+        for beam in beams:
+            if beam.vel in grid_beam_history[beam.loc]:
+                continue
+
+            grid_beam_history[beam.loc].append(beam.vel)
+            grid_counts[beam.loc[1], beam.loc[0]] = 1
+            sym = grid[beam.loc[1], beam.loc[0]]
+
+            if sym == ".":
+                beam.move()
+            elif sym == "|" or sym == "-":
+                new_beam = beam.maybe_split(sym)
+                if new_beam is not None and new_beam.inside(xmax, ymax):
+                    new_beams.append(new_beam)
+            else:
+                beam.turn_symbol(sym)
+
+            if beam.inside(xmax, ymax):
+                new_beams.append(beam)
+
+        beams = new_beams
+        # pois = []
+        # for b in beams:
+        #     pois.append(b.loc)
+        # print_grid(grid, pois)
+        # pprint(beams)
+
+        energized_cells = np.count_nonzero(grid_counts)
+        if energized_cells == prev_e_cells:
+            const_iters += 1
         else:
-            beam.turn_symbol(sym)
+            const_iters = 0
 
-    beams = beams + new_beams
-    
-    filtered_beams = []
-    for beam in beams:
-        if beam.inside(xmax=xmax, ymax=ymax):
-            filtered_beams.append(beam)
+        prev_e_cells = energized_cells
 
-    beams = filtered_beams
-    pois = []
-    #for b in beams:
-    #    pois.append(b.loc)
-    #print_grid(grid, pois)
-    #pprint(beams)
+        if const_iters > 10:
+            break
+        
+        if len(new_beams) == 0:
+            break
 
-    energized_cells = np.count_nonzero(grid_counts)
-    if energized_cells == prev_e_cells:
-        const_iters += 1
-    else:
-        const_iters = 0
+        #input()
 
-    prev_e_cells = energized_cells
+    if energized_cells > max_energy:
+        max_energy = energized_cells
 
-    if const_iters > 10:
-        break
-
-print(energized_cells, file=sys.stderr)
+print(max_energy, file=sys.stderr)
